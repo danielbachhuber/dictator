@@ -103,7 +103,12 @@ class Dictator_CLI_Command extends WP_CLI_Command {
 	 * Steal all of the regions
 	 */
 	private function steal_all_regions() {
-		foreach( $this->regions as $region ) {
+
+		$regions = $this->regions;
+		if ( false !== ( $config_regions = $this->get_config_regions() ) )
+			$regions = array_intersect( $regions, $config_regions );
+
+		foreach( $regions as $region ) {
 			$this->steal_region( $region );
 		}
 	}
@@ -161,5 +166,26 @@ class Dictator_CLI_Command extends WP_CLI_Command {
 		}
 
 		WP_CLI::line( sprintf( "Imposed rules on region: %s", $region ) );
+	}
+
+	/**
+	 * Get the declared regions to dictate from wp-cli.yml
+	 * wp-cli.yml or wp-cli.local.yml can serve as a template
+	 * for the regions we want to dictate
+	 */
+	private function get_config_regions() {
+
+		$dictator_configurator = new WP_CLI\Configurator( dirname( __FILE__ ) . '/wp-cli-config-spec.php' );
+
+		list( $args, $assoc_args, $runtime_config ) = $dictator_configurator->parse_args(
+			array_slice( $GLOBALS['argv'], 1 ) );
+
+		$config_path = WP_CLI::$runner->get_config_path( $runtime_config );
+		$local_config = $dictator_configurator->load_config( $config_path );
+
+		if ( isset( $local_config['dictator']['regions'] ) )
+			return $local_config['dictator']['regions'];
+		else
+			return false;
 	}
 }
